@@ -21,11 +21,22 @@ export default function CozyLibrary() {
     }
   }, []);
 
+  // Helper to find the next empty slot on the shelves
+  const getNextPosition = () => {
+    const totalSlotsUsed = items.length;
+    const shelfIndex = Math.floor(totalSlotsUsed / 10);
+    const posInShelf = totalSlotsUsed % 10;
+    
+    return {
+      shelfIndex,
+      x: 40 + (posInShelf * 80),
+      y: (shelfIndex * 30) + 30 + "%"
+    };
+  };
+
   const finalizeBook = () => {
-    const books = items.filter(i => i.type === 'book');
-    const shelfIndex = Math.floor(books.length / 10);
-    const posInShelf = books.length % 10;
-    if (shelfIndex > 2) return alert("Shelves are full!");
+    const pos = getNextPosition();
+    if (pos.shelfIndex > 2) return alert("Shelves are full!");
 
     const colors = ["#b45309", "#78350f", "#451a03", "#92400e", "#5d2d12"];
     const newBook = {
@@ -33,10 +44,9 @@ export default function CozyLibrary() {
       type: 'book',
       label: tempBook.title,
       rating: tempBook.rating,
-      color: colors[books.length % colors.length],
-      // Fixed alignment math to sit flush on the shelf line
-      x: 40 + (posInShelf * 80), 
-      y: (shelfIndex * 30) + 30 + "%" 
+      color: colors[items.length % colors.length],
+      x: pos.x, 
+      y: pos.y 
     };
 
     setItems(prev => [...prev, newBook]);
@@ -45,14 +55,16 @@ export default function CozyLibrary() {
   };
 
   const addDecor = (icon, label) => {
+    const pos = getNextPosition();
+    if (pos.shelfIndex > 2) return alert("Shelves are full!");
+
     const newItem = {
       id: "decor-" + Date.now(),
       type: 'decor',
       label: label,
       content: icon,
-      // Decor spawns in the middle and is FREE TO DRAG
-      x: 200 + (Math.random() * 100),
-      y: 200 + (Math.random() * 100)
+      x: pos.x,
+      y: pos.y
     };
     setItems(prev => [...prev, newItem]);
   };
@@ -101,8 +113,6 @@ export default function CozyLibrary() {
 
       {/* SHELF AREA */}
       <div className="relative z-10 flex-1 flex items-center justify-center p-12">
-        {isNight && <div className="absolute w-[80%] h-[60%] bg-amber-400/5 blur-[120px] rounded-full pointer-events-none" />}
-
         <div ref={constraintsRef} className={`relative w-full max-w-4xl h-[70vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
           {[30, 60, 90].map(top => (
             <div key={top} style={{ top: `${top}%` }} className={`absolute w-full h-5 border-b-4 transition-colors duration-700 ${isNight ? 'bg-slate-900 border-black' : 'bg-[#5d2d12] border-[#2d1608]'}`} />
@@ -113,9 +123,8 @@ export default function CozyLibrary() {
               key={item.id} 
               className="absolute p-1 z-20"
               style={{ left: item.x, top: item.y }}
-              // Books are NOT draggable to keep the row organized. 
-              // Plants and Decor ARE draggable so you can move them anywhere!
-              drag={item.type !== 'book'}
+              // Both books and decor can now be nudged slightly if you want!
+              drag
               dragConstraints={constraintsRef}
               dragMomentum={false}
               onTap={() => setSelectedItem(item)}
