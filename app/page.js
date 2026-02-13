@@ -20,36 +20,45 @@ export default function CozyLibrary() {
     }
   }, []);
 
-  // FIXED: Properly appends a new book without overwriting old ones
   const addNewBook = () => {
     if (!newTitle.trim()) return;
+    
+    // FIXED: Calculate position based on current number of books
+    const bookCount = items.filter(i => i.type === 'book').length;
     const colors = ["#b45309", "#78350f", "#451a03", "#92400e"];
+    
     const newItem = {
-      id: "id-" + Math.random().toString(36).substr(2, 9),
+      id: "book-" + Math.random().toString(36).substr(2, 9),
       type: 'book',
       label: newTitle,
-      color: colors[items.length % colors.length],
+      color: colors[bookCount % colors.length],
       rating: 0,
-      x: 50, y: 50
+      // Spawns 60 pixels to the right for every book you already have
+      x: 20 + (bookCount * 60), 
+      y: 20 
     };
-    setItems(prev => [...prev, newItem]); // Using functional update to prevent overwrites
+
+    setItems(prev => [...prev, newItem]);
     setNewTitle("");
     setIsAddingBook(false);
   };
 
   const addPlant = (icon) => {
+    const plantCount = items.filter(i => i.type === 'plant').length;
     const newItem = {
-      id: "id-" + Math.random().toString(36).substr(2, 9),
+      id: "plant-" + Math.random().toString(36).substr(2, 9),
       type: 'plant',
       content: icon,
-      x: 100, y: 100
+      x: 100 + (plantCount * 40),
+      y: 150
     };
     setItems(prev => [...prev, newItem]);
   };
 
   const updateRating = (id, rate) => {
-    setItems(items.map(item => item.id === id ? { ...item, rating: rate } : item));
-    setSelectedItem(prev => ({ ...prev, rating: rate }));
+    const updated = items.map(item => item.id === id ? { ...item, rating: rate } : item);
+    setItems(updated);
+    setSelectedItem(updated.find(i => i.id === id));
   };
 
   const deleteItem = (id) => {
@@ -95,6 +104,7 @@ export default function CozyLibrary() {
               drag dragConstraints={constraintsRef} dragMomentum={false}
               className="absolute cursor-grab active:cursor-grabbing p-1"
               onTap={() => setSelectedItem(item)}
+              initial={{ x: item.x, y: item.y }}
             >
               {item.type === 'book' ? (
                 <div className="w-12 h-40 rounded-sm shadow-xl flex items-center justify-center border-l-[6px] border-black/30 text-white" style={{ backgroundColor: item.color }}>
@@ -126,7 +136,7 @@ export default function CozyLibrary() {
             <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs flex flex-col items-center text-center">
               <h2 className="text-lg font-bold mb-4 text-amber-900 uppercase tracking-tighter">{selectedItem.type === 'book' ? selectedItem.label : "Potted Plant"}</h2>
               
-              {/* FIXED: Only show stars for Books */}
+              {/* FIXED: No stars for plants */}
               {selectedItem.type === 'book' && (
                 <div className="flex gap-1 text-3xl mb-8">
                   {[1, 2, 3, 4, 5].map(star => (
