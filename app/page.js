@@ -12,7 +12,6 @@ export default function CozyLibrary() {
   const [tempBook, setTempBook] = useState({ title: "", rating: 0, stage: 'title' });
   const constraintsRef = useRef(null);
 
-  // 1. INITIAL LOAD (LocalStorage + URL Share)
   useEffect(() => {
     const savedItems = localStorage.getItem('cozy-library-items');
     const savedName = localStorage.getItem('cozy-library-name');
@@ -21,7 +20,6 @@ export default function CozyLibrary() {
 
     const params = new URLSearchParams(window.location.search);
     const v2Data = params.get('v2');
-    
     if (v2Data) {
       try {
         const decoded = JSON.parse(decodeURIComponent(atob(v2Data)));
@@ -42,20 +40,19 @@ export default function CozyLibrary() {
     }
   }, []);
 
-  // 2. AUTO-SAVE TO LOCAL STORAGE
   useEffect(() => {
     localStorage.setItem('cozy-library-items', JSON.stringify(items));
     localStorage.setItem('cozy-library-name', libraryName);
   }, [items, libraryName]);
 
-  // 3. GRID LOGIC (Finding next empty spot)
+  // UPDATED: Logic to handle 5 shelves (s < 5)
   const getNextAvailableSlot = () => {
     const MAX_PER_SHELF = 10;
     const occupiedSlots = new Set(items.map(item => item.gridSlot));
-    for (let s = 0; s < 3; s++) {
+    for (let s = 0; s < 5; s++) {
       for (let p = 0; p < MAX_PER_SHELF; p++) {
         const slotId = `${s}-${p}`;
-        if (!occupiedSlots.has(slotId)) return { slotId, x: 40 + (p * 80), y: (s * 30) + 30 + "%" };
+        if (!occupiedSlots.has(slotId)) return { slotId, x: 40 + (p * 80), y: (s * 18) + 18 + "%" };
       }
     }
     return null;
@@ -80,9 +77,7 @@ export default function CozyLibrary() {
   };
 
   const updateRating = (newRating) => {
-    setItems(prev => prev.map(item => 
-      item.id === selectedItem.id ? { ...item, rating: newRating } : item
-    ));
+    setItems(prev => prev.map(item => item.id === selectedItem.id ? { ...item, rating: newRating } : item));
     setSelectedItem(prev => ({ ...prev, rating: newRating }));
   };
 
@@ -100,47 +95,26 @@ export default function CozyLibrary() {
     setItems(prev => [...prev, newItem]);
   };
 
-  // 4. HIGH-CAPACITY SHARE LOGIC
- const generateShareLink = async () => {
+  const generateShareLink = async () => {
     try {
-      // 1. Slim down the data (Minification)
       const slimItems = items.map(item => ({
         t: item.type === 'book' ? 1 : 2,
-        l: item.label,
-        r: item.rating || 0,
-        g: item.gridSlot,
-        c: item.color || '',
-        x: item.x,
-        y: item.y,
-        i: item.content || ''
+        l: item.label, r: item.rating || 0, g: item.gridSlot,
+        c: item.color || '', x: item.x, y: item.y, i: item.content || ''
       }));
-
       const exportData = { n: libraryName, s: slimItems };
       const data = btoa(encodeURIComponent(JSON.stringify(exportData)));
       const longUrl = `${window.location.origin}${window.location.pathname}?v2=${data}`;
-
-      // 2. Use TinyURL API to shrink it
       const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+      const finalUrl = response.ok ? await response.text() : longUrl;
       
-      if (response.ok) {
-        const shortUrl = await response.text();
-        if (navigator.clipboard && window.isSecureContext) {
-          await navigator.clipboard.writeText(shortUrl);
-          alert("✨ Tiny link copied: " + shortUrl);
-        } else {
-          prompt("Copy your tiny link:", shortUrl);
-        }
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(finalUrl);
+        alert("📋 Link copied!");
       } else {
-        // Fallback to long link if API is down
-        throw new Error("Shortener failed");
+        prompt("Copy link:", finalUrl);
       }
-    } catch (err) {
-      // Fallback: copy the long link if tinyurl fails
-      const exportData = { n: libraryName, s: items };
-      const data = btoa(encodeURIComponent(JSON.stringify(exportData)));
-      const longUrl = `${window.location.origin}${window.location.pathname}?v2=${data}`;
-      prompt("Shortener busy. Copy long link instead:", longUrl);
-    }
+    } catch (err) { alert("Link generation failed!"); }
   };
 
   return (
@@ -150,12 +124,31 @@ export default function CozyLibrary() {
         .handwritten { font-family: 'Caveat', cursive; }
       `}</style>
 
-      {/* UI CONTROLS */}
-      <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
-        <button onClick={() => setIsNight(!isNight)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg border-2 ${isNight ? 'bg-slate-800 text-amber-400 border-amber-400/30' : 'bg-white text-indigo-900 border-indigo-100'}`}>
-          {isNight ? '☀️' : '🌙'}
-        </button>
-        <button onClick={generateShareLink} className="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-green-700">SHARE</button>
+      {/* TOP HEADER BAR */}
+      <div className="absolute top-6 left-28 right-6 z-50 flex items-center justify-between">
+        <div className="flex-1">
+          {isEditingName ? (
+            <input 
+              autoFocus 
+              className={`text-4xl font-bold bg-transparent border-b-2 border-amber-500 outline-none handwritten ${isNight ? 'text-amber-400' : 'text-amber-900'}`} 
+              value={libraryName} 
+              onChange={(e) => setLibraryName(e.target.value)} 
+              onBlur={() => setIsEditingName(false)} 
+              onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)} 
+            />
+          ) : (
+            <h1 onClick={() => setIsEditingName(true)} className={`text-5xl font-bold cursor-pointer hover:opacity-70 transition handwritten ${isNight ? 'text-amber-400' : 'text-amber-900'}`}>
+              {libraryName}
+            </h1>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <button onClick={() => setIsNight(!isNight)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg border-2 transition-all ${isNight ? 'bg-slate-800 text-amber-400 border-amber-400/30' : 'bg-white text-indigo-900 border-indigo-100'}`}>
+            {isNight ? '☀️ Night' : '🌙 Day'}
+          </button>
+          <button onClick={generateShareLink} className="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-green-700 transition-colors">SHARE</button>
+        </div>
       </div>
 
       {/* SIDEBAR */}
@@ -166,36 +159,29 @@ export default function CozyLibrary() {
         {['🏺', '🍵'].map((d, i) => <button key={i} onClick={() => addDecor(d, 'Decor')} className="text-4xl hover:scale-110 transition">{d}</button>)}
       </div>
 
-      {/* MAIN SHELF VIEW */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12">
-        <div className="mb-8 text-center">
-          {isEditingName ? (
-            <input autoFocus className={`text-5xl font-bold bg-transparent border-b-2 border-amber-500 outline-none handwritten text-center ${isNight ? 'text-amber-400' : 'text-amber-900'}`} value={libraryName} onChange={(e) => setLibraryName(e.target.value)} onBlur={() => setIsEditingName(false)} onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)} />
-          ) : (
-            <h1 onClick={() => setIsEditingName(true)} className={`text-6xl font-bold cursor-pointer hover:opacity-70 transition handwritten ${isNight ? 'text-amber-400' : 'text-amber-900'}`}>{libraryName}</h1>
-          )}
-        </div>
-
-        <div ref={constraintsRef} className={`relative w-full max-w-4xl h-[60vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
-          {[30, 60, 90].map(top => (
-            <div key={top} style={{ top: `${top}%` }} className={`absolute w-full h-5 border-b-4 ${isNight ? 'bg-slate-900 border-black' : 'bg-[#5d2d12] border-[#2d1608]'}`} />
+      {/* UPDATED: Larger Shelf Area for 5 rows */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 mt-16">
+        <div ref={constraintsRef} className={`relative w-full max-w-5xl h-[80vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
+          {/* UPDATED: Array [18, 36, 54, 72, 90] creates 5 shelf lines */}
+          {[18, 36, 54, 72, 90].map(top => (
+            <div key={top} style={{ top: `${top}%` }} className={`absolute w-full h-4 border-b-4 ${isNight ? 'bg-slate-900 border-black' : 'bg-[#5d2d12] border-[#2d1608]'}`} />
           ))}
 
           {items.map((item) => (
             <motion.div key={item.id} className="absolute p-1 z-20" style={{ left: item.x, top: item.y }} drag dragConstraints={constraintsRef} dragMomentum={false} onTap={() => setSelectedItem(item)}>
               {item.type === 'book' ? (
-                <div className={`w-[65px] h-40 rounded-sm shadow-xl flex items-center justify-center border-l-[6px] border-black/30 text-white transform -translate-y-[100%] mt-[-5px] cursor-pointer ${isNight ? 'brightness-90' : ''}`} style={{ backgroundColor: item.color }}>
-                  <span className="rotate-90 text-[11px] font-bold uppercase whitespace-nowrap tracking-widest handwritten leading-none">{item.label}</span>
+                <div className={`w-[50px] h-32 rounded-sm shadow-xl flex items-center justify-center border-l-[4px] border-black/30 text-white transform -translate-y-[100%] mt-[-4px] cursor-pointer ${isNight ? 'brightness-90' : ''}`} style={{ backgroundColor: item.color }}>
+                  <span className="rotate-90 text-[10px] font-bold uppercase whitespace-nowrap tracking-widest handwritten leading-none">{item.label}</span>
                 </div>
               ) : (
-                <span className={`text-7xl select-none drop-shadow-xl transform -translate-y-[100%] block cursor-grab active:cursor-grabbing mt-[-5px] ${isNight ? 'brightness-90' : ''}`}>{item.content}</span>
+                <span className={`text-6xl select-none drop-shadow-xl transform -translate-y-[100%] block cursor-grab active:cursor-grabbing mt-[-4px] ${isNight ? 'brightness-90' : ''}`}>{item.content}</span>
               )}
             </motion.div>
           ))}
         </div>
       </div>
 
-      {/* POPUP MODALS */}
+      {/* MODALS */}
       <AnimatePresence>
         {isAddingBook && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-amber-950">
@@ -226,7 +212,7 @@ export default function CozyLibrary() {
               <h2 className="text-3xl font-black mb-1 handwritten uppercase text-center">{selectedItem.label}</h2>
               {selectedItem.type === 'book' && (
                 <>
-                  <p className="text-xs uppercase font-bold text-amber-800 mb-2">Change Rating</p>
+                  <p className="text-xs uppercase font-bold text-amber-800 mb-2">Edit Rating</p>
                   <div className="flex gap-1 text-4xl mb-8">
                     {[1, 2, 3, 4, 5].map(star => (
                       <button key={star} onClick={() => updateRating(star)} className={star <= selectedItem.rating ? "text-yellow-500" : "text-gray-200"}>★</button>
