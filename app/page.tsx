@@ -1,65 +1,78 @@
-import Image from "next/image";
+"use client";
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
-export default function Home() {
+export default function CozyLibrary() {
+  const [selectedBook, setSelectedBook] = useState(null);
+  const [rating, setRating] = useState(0);
+
+  // Sample data to start with
+  const books = [
+    { id: 1, title: "The Great Gatsby", color: "#f87171" },
+    { id: 2, title: "Little Women", color: "#60a5fa" },
+    { id: 3, title: "Harry Potter", color: "#34d399" },
+  ];
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+    <main className="min-h-screen bg-[#fefce8] p-8 flex flex-col items-center font-serif">
+      <h1 className="text-4xl text-amber-900 mb-12">My Cozy Library</h1>
+
+      {/* THE SHELF */}
+      <div className="w-full max-w-3xl">
+        <div className="relative flex items-end justify-center gap-2 px-4 pb-1 border-b-[12px] border-amber-800 bg-amber-100/30 h-48 rounded-t-lg">
+          {books.map((book) => (
+            <motion.div
+              key={book.id}
+              layoutId={`book-${book.id}`}
+              onClick={() => setSelectedBook(book)}
+              className="w-10 h-32 rounded-sm cursor-pointer shadow-md flex items-center justify-center border-r border-black/10"
+              style={{ backgroundColor: book.color }}
+              whileHover={{ y: -10 }}
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              <span className="rotate-90 text-[10px] font-bold text-white uppercase tracking-widest whitespace-nowrap">
+                {book.title}
+              </span>
+            </motion.div>
+          ))}
+          
+          {/* A STARTER PLANT */}
+          <div className="text-4xl ml-8 pb-1 cursor-grab active:cursor-grabbing">🪴</div>
+          <div className="text-4xl pb-1 cursor-grab active:cursor-grabbing">🐱</div>
+        </div>
+      </div>
+
+      {/* THE POP-UP RATING MODAL */}
+      <AnimatePresence>
+        {selectedBook && (
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50">
+            <motion.div 
+              layoutId={`book-${selectedBook.id}`}
+              className="bg-white p-8 rounded-3xl shadow-2xl w-80 flex flex-col items-center relative"
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+              <button 
+                onClick={() => setSelectedBook(null)}
+                className="absolute top-4 right-4 text-2xl hover:text-red-500"
+              >✕</button>
+              
+              <div className="w-16 h-24 mb-4 rounded shadow-lg" style={{ backgroundColor: selectedBook.color }} />
+              <h2 className="text-xl text-amber-950 mb-2">{selectedBook.title}</h2>
+              
+              <div className="flex gap-2 text-3xl mb-4">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button 
+                    key={star} 
+                    onClick={() => setRating(star)}
+                    className={star <= rating ? "text-yellow-400" : "text-gray-200"}
+                  >★</button>
+                ))}
+              </div>
+              <p className="text-sm text-gray-400">Rating: {rating}/5</p>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <p className="mt-12 text-amber-800/50 italic text-sm">Tap a book to rate it!</p>
+    </main>
   );
 }
