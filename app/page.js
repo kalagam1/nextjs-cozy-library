@@ -1,110 +1,139 @@
 "use client";
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function CozyLibrary() {
-  const [selectedBook, setSelectedBook] = useState(null);
-  const [placedDecor, setPlacedDecor] = useState([]);
-  const [rating, setRating] = useState(0);
+  const [items, setItems] = useState<any[]>([]);
+  const [isAddingBook, setIsAddingBook] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const constraintsRef = useRef(null);
 
-  const books = [
-    { id: 1, title: "The Great Gatsby", color: "#f87171" },
-    { id: 2, title: "Little Women", color: "#60a5fa" },
-    { id: 3, title: "Harry Potter", color: "#34d399" },
-    { id: 4, title: "The Hobbit", color: "#fbbf24" },
-  ];
-
-  const DECOR_OPTIONS = [
-    { id: 'p1', icon: '🌿', name: 'String of Pearls' }, { id: 'p2', icon: '🌵', name: 'Cactus' },
-    { id: 'p3', icon: '🪴', name: 'Monstera' }, { id: 'p4', icon: '🌻', name: 'Sunflower' },
-    { id: 'p5', icon: '🌳', name: 'Bonsai' }, { id: 'p6', icon: '🌷', name: 'Tulip' },
-    { id: 'p7', icon: '🌸', name: 'Blossom' }, { id: 'p8', icon: '🍄', name: 'Mushroom' },
-    { id: 'p9', icon: '🎋', name: 'Bamboo' }, { id: 'p10', icon: '🍀', name: 'Clover' },
-    { id: 'a1', icon: '🐱', name: 'Cat' }, { id: 'a2', icon: '🐶', name: 'Dog' },
-    { id: 'a3', icon: '🐸', name: 'Frog' }, { id: 'a4', icon: '🐥', name: 'Chick' },
-    { id: 'a5', icon: '🐰', name: 'Bunny' }, { id: 'a6', icon: '🦊', name: 'Fox' },
-    { id: 'a7', icon: '🐼', name: 'Panda' }, { id: 'a8', icon: '🐨', name: 'Koala' },
-    { id: 'a9', icon: '🦎', name: 'Axolotl' }, { id: 'a10', icon: '👻', name: 'Ghostie' },
-  ];
-
-  const addDecor = (item) => {
-    if (placedDecor.length < 15) {
-      setPlacedDecor([...placedDecor, { ...item, instanceId: Date.now() }]);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sharedData = params.get('data');
+    if (sharedData) {
+      try {
+        const decoded = JSON.parse(atob(sharedData));
+        setItems(decoded || []);
+      } catch (e) { console.error("Load failed"); }
     }
+  }, []);
+
+  const addItem = (type: string, icon: string, label: string = "") => {
+    const newItem = {
+      id: Date.now(),
+      type,
+      content: icon,
+      label: label,
+      x: 50, // Starts in the middle
+      y: 50,
+    };
+    setItems([...items, newItem]);
+    setIsAddingBook(false);
+    setNewTitle("");
   };
 
-  const removeDecor = (instanceId) => {
-    setPlacedDecor(placedDecor.filter(d => d.instanceId !== instanceId));
+  const generateShareLink = () => {
+    const data = btoa(JSON.stringify(items));
+    const url = `${window.location.origin}${window.location.pathname}?data=${data}`;
+    navigator.clipboard.writeText(url);
+    alert("Library link copied to clipboard!");
   };
+
+  const PLANTS = ['🌿', '🌵', '🪴', '🎋', '🌴', '🍀', '🍃', '🍄', '🌲', '🎍'];
+  const ANIMALS = ['🐱', '🐶', '🐸', '🦊', '🐰', '🐼', '🐨', '🐥', '🦎', '👻'];
 
   return (
-    <main className="min-h-screen bg-[#fefce8] p-4 flex flex-col items-center font-serif">
-      <h1 className="text-3xl text-amber-900 my-8">My Cozy Library</h1>
-
-      {/* THE SHELF */}
-      <div className="w-full max-w-3xl mb-10">
-        <div className="relative flex items-end justify-start gap-1 px-6 pb-1 border-b-[12px] border-amber-800 bg-amber-100/30 h-48 rounded-t-lg shadow-inner overflow-x-auto">
-          {/* Render Books */}
-          {books.map((book) => (
-            <motion.div
-              key={book.id}
-              layoutId={`book-${book.id}`}
-              onClick={() => setSelectedBook(book)}
-              className="w-10 h-32 flex-shrink-0 rounded-sm cursor-pointer shadow-md flex items-center justify-center border-r border-black/10"
-              style={{ backgroundColor: book.color }}
-              whileHover={{ y: -10 }}
-            >
-              <span className="rotate-90 text-[10px] font-bold text-white uppercase whitespace-nowrap">{book.title}</span>
-            </motion.div>
-          ))}
-
-          {/* Render Placed Decorations */}
-          {placedDecor.map((item) => (
-            <motion.span
-              key={item.instanceId}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              onClick={() => removeDecor(item.instanceId)}
-              className="text-5xl cursor-pointer hover:brightness-110 active:scale-90"
-              title="Click to remove"
-            >
-              {item.icon}
-            </motion.span>
-          ))}
-        </div>
+    <main className="min-h-screen bg-[#fefce8] p-4 flex flex-col items-center font-serif overflow-hidden">
+      <div className="text-center mb-6">
+        <h1 className="text-4xl text-amber-900 font-bold drop-shadow-sm">My Cozy Library</h1>
+        <p className="text-sm text-amber-700 italic">Drag and drop anything to your shelves</p>
+        {typeof window !== 'undefined' && window.location.search.includes('data') && (
+          <a href="/" className="inline-block mt-2 text-xs bg-white border border-amber-200 px-4 py-1 rounded-full text-amber-800 shadow-sm">Create Your Own</a>
+        )}
       </div>
 
-      {/* DECORATION MENU (The Tray) */}
-      <div className="bg-white/80 backdrop-blur p-4 rounded-3xl shadow-xl max-w-xl w-full">
-        <p className="text-center text-amber-800 text-sm mb-3">Tap to add items to your shelf</p>
-        <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-          {DECOR_OPTIONS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => addDecor(item)}
-              className="text-4xl hover:scale-125 transition-transform p-2 bg-amber-50 rounded-xl"
-            >
-              {item.icon}
+      {/* THE ROOM / SHELF AREA */}
+      <div ref={constraintsRef} className="relative w-full max-w-5xl h-[65vh] bg-[#fffcf0] border-x-[16px] border-amber-900 shadow-2xl rounded-xl overflow-hidden">
+        {/* Three Wooden Shelves */}
+        <div className="absolute top-[30%] w-full h-6 bg-amber-800 border-b-4 border-amber-950 shadow-md" />
+        <div className="absolute top-[60%] w-full h-6 bg-amber-800 border-b-4 border-amber-950 shadow-md" />
+        <div className="absolute top-[90%] w-full h-6 bg-amber-800 border-b-4 border-amber-950 shadow-md" />
+
+        {/* DRAGGABLE ITEMS */}
+        {items.map((item) => (
+          <motion.div
+            key={item.id}
+            drag
+            dragConstraints={constraintsRef}
+            dragElastic={0.05}
+            dragMomentum={false}
+            initial={{ x: item.x, y: item.y, scale: 0 }}
+            animate={{ scale: 1 }}
+            whileDrag={{ scale: 1.1, zIndex: 50 }}
+            className="absolute cursor-grab active:cursor-grabbing p-2"
+          >
+            {item.type === 'book' ? (
+              <div className="w-12 h-36 rounded-md shadow-lg flex items-center justify-center border-l-4 border-black/20 text-white" style={{ backgroundColor: '#b45309' }}>
+                <span className="rotate-90 text-[12px] font-bold uppercase whitespace-nowrap tracking-tighter">{item.label}</span>
+              </div>
+            ) : (
+              <span className="text-6xl drop-shadow-md select-none">{item.content}</span>
+            )}
+            {/* Small delete button that appears on hover could go here */}
+          </motion.div>
+        ))}
+      </div>
+
+      {/* ITEM TRAY */}
+      <div className="fixed bottom-4 w-full max-w-4xl px-4">
+        <div className="bg-white/95 backdrop-blur shadow-2xl rounded-3xl p-4 border-2 border-amber-100">
+          <div className="flex items-center gap-4 overflow-x-auto pb-2 scrollbar-hide">
+            {/* Add Book Button */}
+            <button onClick={() => setIsAddingBook(true)} className="flex-shrink-0 w-16 h-16 bg-amber-100 rounded-2xl flex flex-col items-center justify-center text-amber-900 hover:bg-amber-200 transition">
+              <span className="text-2xl">📖</span>
+              <span className="text-[10px] font-bold">+BOOK</span>
             </button>
-          ))}
+
+            <div className="h-12 w-[2px] bg-amber-100 mx-2" />
+
+            {/* Plants */}
+            {PLANTS.map(p => (
+              <button key={p} onClick={() => addItem('plant', p)} className="text-4xl hover:scale-125 transition active:scale-90">{p}</button>
+            ))}
+
+            <div className="h-12 w-[2px] bg-amber-100 mx-2" />
+
+            {/* Animals */}
+            {ANIMALS.map(a => (
+              <button key={a} onClick={() => addItem('animal', a)} className="text-4xl hover:scale-125 transition active:scale-90">{a}</button>
+            ))}
+
+            <button onClick={generateShareLink} className="ml-auto bg-green-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg hover:bg-green-700 transition">SHARE</button>
+          </div>
         </div>
       </div>
 
-      {/* STAR RATING POPUP */}
+      {/* BOOK POPUP */}
       <AnimatePresence>
-        {selectedBook && (
-          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <motion.div layoutId={`book-${selectedBook.id}`} className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-sm flex flex-col items-center relative">
-              <button onClick={() => setSelectedBook(null)} className="absolute top-4 right-4 text-2xl">✕</button>
-              <div className="w-20 h-32 mb-4 rounded shadow-lg" style={{ backgroundColor: selectedBook.color }} />
-              <h2 className="text-2xl text-amber-950 mb-4 text-center">{selectedBook.title}</h2>
-              <div className="flex gap-2 text-4xl mb-6">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <button key={star} onClick={() => setRating(star)} className={star <= rating ? "text-yellow-400" : "text-gray-200"}>★</button>
-                ))}
+        {isAddingBook && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white p-8 rounded-3xl w-full max-w-sm shadow-2xl">
+              <h2 className="text-xl font-bold text-amber-900 mb-4">Add a new book</h2>
+              <input 
+                autoFocus
+                placeholder="Book Title..." 
+                className="w-full p-4 bg-amber-50 border-2 border-amber-100 rounded-xl mb-6 outline-none focus:border-amber-500 text-lg"
+                value={newTitle}
+                onChange={(e) => setNewTitle(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addItem('book', '', newTitle)}
+              />
+              <div className="flex gap-3">
+                <button onClick={() => addItem('book', '', newTitle)} className="flex-1 bg-amber-800 text-white py-4 rounded-xl font-bold text-lg shadow-lg">Add to Library</button>
+                <button onClick={() => setIsAddingBook(false)} className="px-6 py-4 bg-gray-100 rounded-xl font-bold text-gray-500">Cancel</button>
               </div>
             </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </main>
