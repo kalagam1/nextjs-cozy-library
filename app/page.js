@@ -101,8 +101,9 @@ export default function CozyLibrary() {
   };
 
   // 4. HIGH-CAPACITY SHARE LOGIC
-  const generateShareLink = () => {
+ const generateShareLink = async () => {
     try {
+      // 1. Slim down the data (Minification)
       const slimItems = items.map(item => ({
         t: item.type === 'book' ? 1 : 2,
         l: item.label,
@@ -116,17 +117,29 @@ export default function CozyLibrary() {
 
       const exportData = { n: libraryName, s: slimItems };
       const data = btoa(encodeURIComponent(JSON.stringify(exportData)));
-      const url = `${window.location.origin}${window.location.pathname}?v2=${data}`;
+      const longUrl = `${window.location.origin}${window.location.pathname}?v2=${data}`;
+
+      // 2. Use TinyURL API to shrink it
+      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
       
-      if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(url)
-          .then(() => alert("🚀 High-capacity link copied!"))
-          .catch(() => prompt("Copy your link:", url));
+      if (response.ok) {
+        const shortUrl = await response.text();
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(shortUrl);
+          alert("✨ Tiny link copied: " + shortUrl);
+        } else {
+          prompt("Copy your tiny link:", shortUrl);
+        }
       } else {
-        prompt("Copy your link:", url);
+        // Fallback to long link if API is down
+        throw new Error("Shortener failed");
       }
     } catch (err) {
-      alert("Library is too massive to share!");
+      // Fallback: copy the long link if tinyurl fails
+      const exportData = { n: libraryName, s: items };
+      const data = btoa(encodeURIComponent(JSON.stringify(exportData)));
+      const longUrl = `${window.location.origin}${window.location.pathname}?v2=${data}`;
+      prompt("Shortener busy. Copy long link instead:", longUrl);
     }
   };
 
