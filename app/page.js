@@ -12,6 +12,7 @@ export default function CozyLibrary() {
   const [tempBook, setTempBook] = useState({ title: "", rating: 0, stage: 'title' });
   const constraintsRef = useRef(null);
 
+  // 1. INITIAL LOAD (LocalStorage + URL Share)
   useEffect(() => {
     const savedItems = localStorage.getItem('cozy-library-items');
     const savedName = localStorage.getItem('cozy-library-name');
@@ -19,22 +20,35 @@ export default function CozyLibrary() {
     if (savedName) setLibraryName(savedName);
 
     const params = new URLSearchParams(window.location.search);
-    const sharedData = params.get('data');
-    if (sharedData) {
+    const v2Data = params.get('v2');
+    
+    if (v2Data) {
       try {
-        const decoded = JSON.parse(atob(sharedData));
-        // Expecting { name, items }
-        if (decoded.items) setItems(decoded.items);
-        if (decoded.name) setLibraryName(decoded.name);
+        const decoded = JSON.parse(decodeURIComponent(atob(v2Data)));
+        const expandedItems = decoded.s.map(item => ({
+          id: "item-" + Math.random().toString(36).substr(2, 9),
+          type: item.t === 1 ? 'book' : 'decor',
+          label: item.l,
+          rating: item.r,
+          gridSlot: item.g,
+          color: item.c,
+          x: item.x,
+          y: item.y,
+          content: item.i
+        }));
+        setItems(expandedItems);
+        if (decoded.n) setLibraryName(decoded.n);
       } catch (e) { console.error("Load failed"); }
     }
   }, []);
 
+  // 2. AUTO-SAVE TO LOCAL STORAGE
   useEffect(() => {
     localStorage.setItem('cozy-library-items', JSON.stringify(items));
     localStorage.setItem('cozy-library-name', libraryName);
   }, [items, libraryName]);
 
+  // 3. GRID LOGIC (Finding next empty spot)
   const getNextAvailableSlot = () => {
     const MAX_PER_SHELF = 10;
     const occupiedSlots = new Set(items.map(item => item.gridSlot));
@@ -86,11 +100,34 @@ export default function CozyLibrary() {
     setItems(prev => [...prev, newItem]);
   };
 
+  // 4. HIGH-CAPACITY SHARE LOGIC
   const generateShareLink = () => {
-    const exportData = { name: libraryName, items: items };
-    const data = btoa(JSON.stringify(exportData));
-    const url = `${window.location.origin}${window.location.pathname}?data=${data}`;
-    navigator.clipboard.writeText(url).then(() => alert("Share link copied with your library name!"));
+    try {
+      const slimItems = items.map(item => ({
+        t: item.type === 'book' ? 1 : 2,
+        l: item.label,
+        r: item.rating || 0,
+        g: item.gridSlot,
+        c: item.color || '',
+        x: item.x,
+        y: item.y,
+        i: item.content || ''
+      }));
+
+      const exportData = { n: libraryName, s: slimItems };
+      const data = btoa(encodeURIComponent(JSON.stringify(exportData)));
+      const url = `${window.location.origin}${window.location.pathname}?v2=${data}`;
+      
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(url)
+          .then(() => alert("🚀 High-capacity link copied!"))
+          .catch(() => prompt("Copy your link:", url));
+      } else {
+        prompt("Copy your link:", url);
+      }
+    } catch (err) {
+      alert("Library is too massive to share!");
+    }
   };
 
   return (
@@ -100,9 +137,9 @@ export default function CozyLibrary() {
         .handwritten { font-family: 'Caveat', cursive; }
       `}</style>
 
-      {/* TOP CONTROLS */}
+      {/* UI CONTROLS */}
       <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
-        <button onClick={() => setIsNight(!isNight)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg transition-all border-2 ${isNight ? 'bg-slate-800 text-amber-400 border-amber-400/30' : 'bg-white text-indigo-900 border-indigo-100'}`}>
+        <button onClick={() => setIsNight(!isNight)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg border-2 ${isNight ? 'bg-slate-800 text-amber-400 border-amber-400/30' : 'bg-white text-indigo-900 border-indigo-100'}`}>
           {isNight ? '☀️' : '🌙'}
         </button>
         <button onClick={generateShareLink} className="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-green-700">SHARE</button>
@@ -116,18 +153,11 @@ export default function CozyLibrary() {
         {['🏺', '🍵'].map((d, i) => <button key={i} onClick={() => addDecor(d, 'Decor')} className="text-4xl hover:scale-110 transition">{d}</button>)}
       </div>
 
-      {/* SHELF AREA */}
+      {/* MAIN SHELF VIEW */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12">
         <div className="mb-8 text-center">
           {isEditingName ? (
-            <input 
-              autoFocus
-              className={`text-5xl font-bold bg-transparent border-b-2 border-amber-500 outline-none handwritten text-center ${isNight ? 'text-amber-400' : 'text-amber-900'}`}
-              value={libraryName}
-              onChange={(e) => setLibraryName(e.target.value)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
-            />
+            <input autoFocus className={`text-5xl font-bold bg-transparent border-b-2 border-amber-500 outline-none handwritten text-center ${isNight ? 'text-amber-400' : 'text-amber-900'}`} value={libraryName} onChange={(e) => setLibraryName(e.target.value)} onBlur={() => setIsEditingName(false)} onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)} />
           ) : (
             <h1 onClick={() => setIsEditingName(true)} className={`text-6xl font-bold cursor-pointer hover:opacity-70 transition handwritten ${isNight ? 'text-amber-400' : 'text-amber-900'}`}>{libraryName}</h1>
           )}
@@ -152,7 +182,7 @@ export default function CozyLibrary() {
         </div>
       </div>
 
-      {/* MODALS */}
+      {/* POPUP MODALS */}
       <AnimatePresence>
         {isAddingBook && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-amber-950">
@@ -160,7 +190,7 @@ export default function CozyLibrary() {
               {tempBook.stage === 'title' ? (
                 <>
                   <h2 className="text-2xl font-black mb-4 handwritten">Book Title</h2>
-                  <input autoFocus className="w-full p-3 bg-amber-50 rounded-xl mb-6 border-2 border-amber-200 outline-none text-black font-bold handwritten text-xl" placeholder="The Great Gatsby..." onChange={(e) => setTempBook({...tempBook, title: e.target.value})} />
+                  <input autoFocus className="w-full p-3 bg-amber-50 rounded-xl mb-6 border-2 border-amber-200 outline-none text-black font-bold handwritten text-xl" placeholder="Book name..." onChange={(e) => setTempBook({...tempBook, title: e.target.value})} />
                   <button onClick={() => setTempBook({...tempBook, stage: 'rating'})} className="w-full bg-amber-900 text-white py-3 rounded-xl font-bold">Next</button>
                 </>
               ) : (
@@ -172,7 +202,7 @@ export default function CozyLibrary() {
                   <button onClick={finalizeBook} className="w-full bg-green-700 text-white py-3 rounded-xl font-bold">Finish</button>
                 </>
               )}
-              <button onClick={() => setIsAddingBook(false)} className="mt-4 text-gray-500 font-bold hover:text-red-600 transition-colors text-sm">Cancel</button>
+              <button onClick={() => setIsAddingBook(false)} className="mt-4 text-gray-500 font-bold text-sm">Cancel</button>
             </motion.div>
           </div>
         )}
@@ -183,7 +213,7 @@ export default function CozyLibrary() {
               <h2 className="text-3xl font-black mb-1 handwritten uppercase text-center">{selectedItem.label}</h2>
               {selectedItem.type === 'book' && (
                 <>
-                  <p className="text-xs uppercase font-bold text-amber-800 mb-2">Edit Rating</p>
+                  <p className="text-xs uppercase font-bold text-amber-800 mb-2">Change Rating</p>
                   <div className="flex gap-1 text-4xl mb-8">
                     {[1, 2, 3, 4, 5].map(star => (
                       <button key={star} onClick={() => updateRating(star)} className={star <= selectedItem.rating ? "text-yellow-500" : "text-gray-200"}>★</button>
