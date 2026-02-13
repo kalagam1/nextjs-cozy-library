@@ -22,8 +22,9 @@ export default function CozyLibrary() {
   }, []);
 
   const finalizeBook = () => {
-    const shelfIndex = Math.floor(items.length / 10);
-    const posInShelf = items.length % 10;
+    const books = items.filter(i => i.type === 'book');
+    const shelfIndex = Math.floor(books.length / 10);
+    const posInShelf = books.length % 10;
     if (shelfIndex > 2) return alert("Shelves are full!");
 
     const colors = ["#b45309", "#78350f", "#451a03", "#92400e", "#5d2d12"];
@@ -32,9 +33,10 @@ export default function CozyLibrary() {
       type: 'book',
       label: tempBook.title,
       rating: tempBook.rating,
-      color: colors[items.length % colors.length],
+      color: colors[books.length % colors.length],
+      // Fixed alignment math to sit flush on the shelf line
       x: 40 + (posInShelf * 80), 
-      y: (shelfIndex * 30) + 5 + "%" 
+      y: (shelfIndex * 30) + 30 + "%" 
     };
 
     setItems(prev => [...prev, newBook]);
@@ -43,17 +45,14 @@ export default function CozyLibrary() {
   };
 
   const addDecor = (icon, label) => {
-    const shelfIndex = Math.floor(items.length / 10);
-    const posInShelf = items.length % 10;
-    if (shelfIndex > 2) return alert("Shelves are full!");
-
     const newItem = {
       id: "decor-" + Date.now(),
       type: 'decor',
       label: label,
       content: icon,
-      x: 40 + (posInShelf * 80),
-      y: (shelfIndex * 30) + 5 + "%"
+      // Decor spawns in the middle and is FREE TO DRAG
+      x: 200 + (Math.random() * 100),
+      y: 200 + (Math.random() * 100)
     };
     setItems(prev => [...prev, newItem]);
   };
@@ -70,7 +69,6 @@ export default function CozyLibrary() {
   };
 
   const POTTED_PLANTS = ['🪴', '🌵', '🎍'];
-  // Removed bowl and test tube emojis
   const DECOR = [
     { icon: '🏺', label: 'Classic Vase' },
     { icon: '🍵', label: 'Small Pot' }
@@ -79,20 +77,12 @@ export default function CozyLibrary() {
   return (
     <main className={`min-h-screen flex font-serif overflow-hidden relative transition-colors duration-700 ${isNight ? 'bg-[#0f172a]' : 'bg-[#fefce8]'}`}>
       
-      {/* TOP CONTROLS - TOGGLE MOVED TO LEFT OF SHARE */}
+      {/* TOP CONTROLS */}
       <div className="absolute top-6 right-6 z-50 flex items-center gap-3">
-        <button 
-          onClick={() => setIsNight(!isNight)} 
-          className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg transition-all border-2 ${isNight ? 'bg-slate-800 text-amber-400 border-amber-400/30' : 'bg-white text-indigo-900 border-indigo-100'}`}
-        >
-          {isNight ? '☀️' : '🌙'} {isNight ? 'Day' : 'Night'}
+        <button onClick={() => setIsNight(!isNight)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg transition-all border-2 ${isNight ? 'bg-slate-800 text-amber-400 border-amber-400/30' : 'bg-white text-indigo-900 border-indigo-100'}`}>
+          {isNight ? '☀️ Day' : '🌙 Night'}
         </button>
-        <button 
-          onClick={generateShareLink} 
-          className="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-green-700 transition-colors"
-        >
-          SHARE
-        </button>
+        <button onClick={generateShareLink} className="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-green-700 transition-colors">SHARE</button>
       </div>
 
       {/* SIDEBAR */}
@@ -113,19 +103,29 @@ export default function CozyLibrary() {
       <div className="relative z-10 flex-1 flex items-center justify-center p-12">
         {isNight && <div className="absolute w-[80%] h-[60%] bg-amber-400/5 blur-[120px] rounded-full pointer-events-none" />}
 
-        <div className={`relative w-full max-w-4xl h-[70vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
+        <div ref={constraintsRef} className={`relative w-full max-w-4xl h-[70vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
           {[30, 60, 90].map(top => (
             <div key={top} style={{ top: `${top}%` }} className={`absolute w-full h-5 border-b-4 transition-colors duration-700 ${isNight ? 'bg-slate-900 border-black' : 'bg-[#5d2d12] border-[#2d1608]'}`} />
           ))}
 
           {items.map((item) => (
-            <motion.div key={item.id} className="absolute p-1 cursor-pointer" style={{ left: item.x, top: item.y }} onClick={() => setSelectedItem(item)}>
+            <motion.div 
+              key={item.id} 
+              className="absolute p-1 z-20"
+              style={{ left: item.x, top: item.y }}
+              // Books are NOT draggable to keep the row organized. 
+              // Plants and Decor ARE draggable so you can move them anywhere!
+              drag={item.type !== 'book'}
+              dragConstraints={constraintsRef}
+              dragMomentum={false}
+              onTap={() => setSelectedItem(item)}
+            >
               {item.type === 'book' ? (
-                <div className={`w-[65px] h-40 rounded-sm shadow-xl flex items-center justify-center border-l-[6px] border-black/30 text-white transform -translate-y-[100%] mt-[-5px] ${isNight ? 'brightness-90' : ''}`} style={{ backgroundColor: item.color }}>
+                <div className={`w-[65px] h-40 rounded-sm shadow-xl flex items-center justify-center border-l-[6px] border-black/30 text-white transform -translate-y-[100%] cursor-pointer ${isNight ? 'brightness-90' : ''}`} style={{ backgroundColor: item.color }}>
                   <span className="rotate-90 text-[10px] font-bold uppercase whitespace-nowrap tracking-widest">{item.label}</span>
                 </div>
               ) : (
-                <span className={`text-7xl select-none drop-shadow-xl transform -translate-y-[100%] block mt-[-5px] ${isNight ? 'brightness-90' : ''}`}>{item.content}</span>
+                <span className={`text-7xl select-none drop-shadow-xl transform -translate-y-[100%] block cursor-grab active:cursor-grabbing ${isNight ? 'brightness-90' : ''}`}>{item.content}</span>
               )}
             </motion.div>
           ))}
@@ -155,7 +155,6 @@ export default function CozyLibrary() {
                   <button onClick={finalizeBook} className="w-full bg-green-700 text-white py-3 rounded-xl font-bold">Finish</button>
                 </>
               )}
-              <button onClick={() => setIsAddingBook(false)} className="mt-4 text-gray-400 text-sm hover:text-gray-600 transition-colors">Cancel</button>
             </motion.div>
           </div>
         )}
@@ -172,8 +171,8 @@ export default function CozyLibrary() {
                 </div>
               )}
               <div className="flex gap-2 w-full">
-                <button onClick={() => setSelectedItem(null)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold hover:bg-gray-200 transition-colors">Close</button>
-                <button onClick={() => deleteItem(selectedItem.id)} className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl font-bold hover:bg-red-100 transition-colors">Delete</button>
+                <button onClick={() => setSelectedItem(null)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold">Close</button>
+                <button onClick={() => deleteItem(selectedItem.id)} className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl font-bold">Delete</button>
               </div>
             </div>
           </div>
