@@ -20,37 +20,36 @@ export default function CozyLibrary() {
     }
   }, []);
 
-  // FIXED: This now properly appends a brand new object every time
+  // FIXED: Properly appends a new book without overwriting old ones
   const addNewBook = () => {
     if (!newTitle.trim()) return;
     const colors = ["#b45309", "#78350f", "#451a03", "#92400e"];
     const newItem = {
-      id: "book-" + Math.random().toString(36).substr(2, 9),
+      id: "id-" + Math.random().toString(36).substr(2, 9),
       type: 'book',
       label: newTitle,
       color: colors[items.length % colors.length],
       rating: 0,
-      x: 20, y: 20 // Default spawn position
+      x: 50, y: 50
     };
-    setItems(prevItems => [...prevItems, newItem]);
+    setItems(prev => [...prev, newItem]); // Using functional update to prevent overwrites
     setNewTitle("");
     setIsAddingBook(false);
   };
 
   const addPlant = (icon) => {
     const newItem = {
-      id: "plant-" + Math.random().toString(36).substr(2, 9),
+      id: "id-" + Math.random().toString(36).substr(2, 9),
       type: 'plant',
       content: icon,
-      x: 40, y: 40
+      x: 100, y: 100
     };
-    setItems(prevItems => [...prevItems, newItem]);
+    setItems(prev => [...prev, newItem]);
   };
 
   const updateRating = (id, rate) => {
-    const updated = items.map(item => item.id === id ? { ...item, rating: rate } : item);
-    setItems(updated);
-    setSelectedItem(updated.find(i => i.id === id));
+    setItems(items.map(item => item.id === id ? { ...item, rating: rate } : item));
+    setSelectedItem(prev => ({ ...prev, rating: rate }));
   };
 
   const deleteItem = (id) => {
@@ -61,10 +60,10 @@ export default function CozyLibrary() {
   const generateShareLink = () => {
     const data = btoa(JSON.stringify(items));
     const url = `${window.location.origin}${window.location.pathname}?data=${data}`;
-    navigator.clipboard.writeText(url).then(() => alert("Link copied to clipboard!"));
+    navigator.clipboard.writeText(url).then(() => alert("Link copied!"));
   };
 
-  const POTTED_PLANTS = ['🪴', '🌵', '🎍', '🪴', '🌵', '🎍', '🪴', '🌵', '🎍'];
+  const POTTED_PLANTS = ['🪴', '🌵', '🎍', '🪴', '🌵', '🎍'];
 
   return (
     <main className="min-h-screen flex font-serif overflow-hidden relative bg-[#fefce8]">
@@ -74,26 +73,22 @@ export default function CozyLibrary() {
         SHARE LIBRARY
       </button>
 
-      {/* LEFT SIDEBAR MENU */}
+      {/* LEFT SIDEBAR */}
       <div className="relative z-10 w-24 flex flex-col items-center gap-6 bg-white/90 border-r-2 border-amber-100 p-4 h-screen shadow-xl overflow-y-auto">
         <button onClick={() => setIsAddingBook(true)} className="w-16 h-16 bg-amber-700 text-white rounded-2xl text-2xl shadow-lg active:scale-95 transition">📖+</button>
         <div className="w-10 h-[2px] bg-amber-100" />
         {POTTED_PLANTS.map((p, idx) => (
-          <button key={idx} onClick={() => addPlant(p)} className="text-5xl hover:scale-110 transition drop-shadow-sm">
-            {p}
-          </button>
+          <button key={idx} onClick={() => addPlant(p)} className="text-5xl hover:scale-110 transition drop-shadow-sm">{p}</button>
         ))}
       </div>
 
-      {/* CENTERED SHELF AREA */}
+      {/* SHELF AREA */}
       <div className="relative z-10 flex-1 flex items-center justify-center p-12">
         <div ref={constraintsRef} className="relative w-full max-w-4xl h-[70vh] bg-[#fffcf0] border-x-[12px] border-[#3e1d0b] shadow-xl rounded-sm">
-          {/* Shelves */}
           {[30, 60, 90].map(top => (
-            <div key={top} style={{ top: `${top}%` }} className="absolute w-full h-5 bg-[#5d2d12] border-b-4 border-[#2d1608] shadow-md" />
+            <div key={top} style={{ top: `${top}%` }} className="absolute w-full h-5 bg-[#5d2d12] border-b-4 border-[#2d1608]" />
           ))}
 
-          {/* DRAGGABLE ITEMS */}
           {items.map((item) => (
             <motion.div
               key={item.id}
@@ -117,30 +112,34 @@ export default function CozyLibrary() {
       <AnimatePresence>
         {isAddingBook && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs border-4 border-amber-50">
-              <h2 className="text-xl font-bold text-amber-950 mb-4">Add New Book</h2>
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs">
+              <h2 className="text-xl font-bold mb-4">Book Title:</h2>
               <input autoFocus className="w-full p-3 bg-amber-50 rounded-xl mb-6 outline-none border-2 border-amber-100 focus:border-amber-500" 
                      value={newTitle} onChange={(e) => setNewTitle(e.target.value)} />
-              <button onClick={addNewBook} className="w-full bg-amber-900 text-white py-3 rounded-xl font-bold shadow-lg">Add to Shelf</button>
-              <button onClick={() => setIsAddingBook(false)} className="w-full mt-2 text-gray-500 text-sm">Cancel</button>
-            </motion.div>
+              <button onClick={addNewBook} className="w-full bg-amber-900 text-white py-3 rounded-xl font-bold">Add to Shelf</button>
+            </div>
           </div>
         )}
 
         {selectedItem && (
           <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-            <motion.div initial={{ y: 20 }} animate={{ y: 0 }} className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs flex flex-col items-center">
-              <h2 className="text-lg font-bold mb-4 text-amber-900 truncate w-full text-center">{selectedItem.label || "Potted Plant"}</h2>
-              <div className="flex gap-1 text-3xl mb-8">
-                {[1, 2, 3, 4, 5].map(star => (
-                  <button key={star} onClick={() => updateRating(selectedItem.id, star)} className={star <= (selectedItem.rating || 0) ? "text-yellow-400" : "text-gray-200"}>★</button>
-                ))}
-              </div>
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs flex flex-col items-center text-center">
+              <h2 className="text-lg font-bold mb-4 text-amber-900 uppercase tracking-tighter">{selectedItem.type === 'book' ? selectedItem.label : "Potted Plant"}</h2>
+              
+              {/* FIXED: Only show stars for Books */}
+              {selectedItem.type === 'book' && (
+                <div className="flex gap-1 text-3xl mb-8">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button key={star} onClick={() => updateRating(selectedItem.id, star)} className={star <= (selectedItem.rating || 0) ? "text-yellow-400" : "text-gray-200"}>★</button>
+                  ))}
+                </div>
+              )}
+
               <div className="flex gap-2 w-full">
                 <button onClick={() => setSelectedItem(null)} className="flex-1 bg-gray-100 py-3 rounded-xl font-bold">Close</button>
                 <button onClick={() => deleteItem(selectedItem.id)} className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl font-bold">Delete</button>
               </div>
-            </motion.div>
+            </div>
           </div>
         )}
       </AnimatePresence>
