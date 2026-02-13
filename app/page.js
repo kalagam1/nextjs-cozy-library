@@ -21,22 +21,32 @@ export default function CozyLibrary() {
     }
   }, []);
 
-  // Helper to find the next empty slot on the shelves
-  const getNextPosition = () => {
-    const totalSlotsUsed = items.length;
-    const shelfIndex = Math.floor(totalSlotsUsed / 10);
-    const posInShelf = totalSlotsUsed % 10;
+  // NEW: Logic to find the first truly empty slot
+  const getNextAvailableSlot = () => {
+    const MAX_PER_SHELF = 10;
+    const TOTAL_SHELVES = 3;
     
-    return {
-      shelfIndex,
-      x: 40 + (posInShelf * 80),
-      y: (shelfIndex * 30) + 30 + "%"
-    };
+    // Create a map of occupied slots based on initial spawn positions
+    const occupiedSlots = new Set(items.map(item => item.gridSlot));
+
+    for (let s = 0; s < TOTAL_SHELVES; s++) {
+      for (let p = 0; p < MAX_PER_SHELF; p++) {
+        const slotId = `${s}-${p}`;
+        if (!occupiedSlots.has(slotId)) {
+          return {
+            slotId,
+            x: 40 + (p * 80),
+            y: (s * 30) + 30 + "%"
+          };
+        }
+      }
+    }
+    return null;
   };
 
   const finalizeBook = () => {
-    const pos = getNextPosition();
-    if (pos.shelfIndex > 2) return alert("Shelves are full!");
+    const pos = getNextAvailableSlot();
+    if (!pos) return alert("Shelves are full!");
 
     const colors = ["#b45309", "#78350f", "#451a03", "#92400e", "#5d2d12"];
     const newBook = {
@@ -44,6 +54,7 @@ export default function CozyLibrary() {
       type: 'book',
       label: tempBook.title,
       rating: tempBook.rating,
+      gridSlot: pos.slotId, // Track which slot this item "owns"
       color: colors[items.length % colors.length],
       x: pos.x, 
       y: pos.y 
@@ -55,14 +66,15 @@ export default function CozyLibrary() {
   };
 
   const addDecor = (icon, label) => {
-    const pos = getNextPosition();
-    if (pos.shelfIndex > 2) return alert("Shelves are full!");
+    const pos = getNextAvailableSlot();
+    if (!pos) return alert("Shelves are full!");
 
     const newItem = {
       id: "decor-" + Date.now(),
       type: 'decor',
       label: label,
       content: icon,
+      gridSlot: pos.slotId, // Track which slot this item "owns"
       x: pos.x,
       y: pos.y
     };
@@ -123,7 +135,6 @@ export default function CozyLibrary() {
               key={item.id} 
               className="absolute p-1 z-20"
               style={{ left: item.x, top: item.y }}
-              // Both books and decor can now be nudged slightly if you want!
               drag
               dragConstraints={constraintsRef}
               dragMomentum={false}
