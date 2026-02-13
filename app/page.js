@@ -12,10 +12,13 @@ export default function CozyLibrary() {
   const [tempBook, setTempBook] = useState({ title: "", rating: 0, stage: 'title' });
   const constraintsRef = useRef(null);
 
+  // 1. Load Data with smarter naming logic
   useEffect(() => {
     const savedItems = localStorage.getItem('cozy-library-items');
     const savedName = localStorage.getItem('cozy-library-name');
+    
     if (savedItems) setItems(JSON.parse(savedItems));
+    // Use saved name if it exists, otherwise stay with default
     if (savedName) setLibraryName(savedName);
 
     const params = new URLSearchParams(window.location.search);
@@ -45,14 +48,23 @@ export default function CozyLibrary() {
     localStorage.setItem('cozy-library-name', libraryName);
   }, [items, libraryName]);
 
-  // UPDATED: Logic to handle 5 shelves (s < 5)
+  // FIXED: Vertical alignment math for 5 shelves
   const getNextAvailableSlot = () => {
     const MAX_PER_SHELF = 10;
     const occupiedSlots = new Set(items.map(item => item.gridSlot));
+    // Shelves are at 18%, 36%, 54%, 72%, 90%
+    const shelfPositions = [18, 36, 54, 72, 90]; 
+    
     for (let s = 0; s < 5; s++) {
       for (let p = 0; p < MAX_PER_SHELF; p++) {
         const slotId = `${s}-${p}`;
-        if (!occupiedSlots.has(slotId)) return { slotId, x: 40 + (p * 80), y: (s * 18) + 18 + "%" };
+        if (!occupiedSlots.has(slotId)) {
+          return { 
+            slotId, 
+            x: 40 + (p * 80), 
+            y: shelfPositions[s] + "%" // Pins them exactly to the shelf line
+          };
+        }
       }
     }
     return null;
@@ -124,20 +136,23 @@ export default function CozyLibrary() {
         .handwritten { font-family: 'Caveat', cursive; }
       `}</style>
 
-      {/* TOP HEADER BAR */}
-      <div className="absolute top-6 left-28 right-6 z-50 flex items-center justify-between">
-        <div className="flex-1">
+      {/* HEADER: Centered Title + Right-aligned Buttons */}
+      <div className="absolute top-6 left-0 right-0 z-50 flex items-center px-8">
+        {/* Spacer to keep name centered while sidebar is on the left */}
+        <div className="w-24"></div> 
+        
+        <div className="flex-1 text-center">
           {isEditingName ? (
             <input 
               autoFocus 
-              className={`text-4xl font-bold bg-transparent border-b-2 border-amber-500 outline-none handwritten ${isNight ? 'text-amber-400' : 'text-amber-900'}`} 
+              className={`text-4xl font-bold bg-transparent border-b-2 border-amber-500 outline-none handwritten text-center ${isNight ? 'text-amber-400' : 'text-amber-900'}`} 
               value={libraryName} 
               onChange={(e) => setLibraryName(e.target.value)} 
               onBlur={() => setIsEditingName(false)} 
               onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)} 
             />
           ) : (
-            <h1 onClick={() => setIsEditingName(true)} className={`text-5xl font-bold cursor-pointer hover:opacity-70 transition handwritten ${isNight ? 'text-amber-400' : 'text-amber-900'}`}>
+            <h1 onClick={() => setIsEditingName(true)} className={`text-5xl font-bold cursor-pointer hover:opacity-70 transition handwritten inline-block ${isNight ? 'text-amber-400' : 'text-amber-900'}`}>
               {libraryName}
             </h1>
           )}
@@ -145,7 +160,7 @@ export default function CozyLibrary() {
 
         <div className="flex items-center gap-3">
           <button onClick={() => setIsNight(!isNight)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg border-2 transition-all ${isNight ? 'bg-slate-800 text-amber-400 border-amber-400/30' : 'bg-white text-indigo-900 border-indigo-100'}`}>
-            {isNight ? '☀️ Night' : '🌙 Day'}
+            {isNight ? '☀️' : '🌙'}
           </button>
           <button onClick={generateShareLink} className="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-green-700 transition-colors">SHARE</button>
         </div>
@@ -153,16 +168,16 @@ export default function CozyLibrary() {
 
       {/* SIDEBAR */}
       <div className={`relative z-10 w-24 flex flex-col items-center gap-4 border-r-2 p-4 h-screen shadow-xl transition-colors duration-700 ${isNight ? 'bg-slate-900/90 border-slate-700' : 'bg-white/90 border-amber-100'}`}>
-        <button onClick={() => setIsAddingBook(true)} className="w-14 h-14 bg-amber-700 text-white rounded-2xl text-xl shadow-lg mb-2 active:scale-95 transition-transform">📖+</button>
+        <button onClick={() => setIsAddingBook(true)} className="w-14 h-14 bg-amber-700 text-white rounded-2xl text-xl shadow-lg mb-2 active:scale-95 transition-transform mt-20">📖+</button>
         {['🪴', '🌵', '🎍'].map((p, i) => <button key={i} onClick={() => addDecor(p, 'Plant')} className="text-4xl hover:scale-110 transition">{p}</button>)}
         <div className={`w-10 h-[2px] my-2 ${isNight ? 'bg-slate-700' : 'bg-amber-100'}`} />
         {['🏺', '🍵'].map((d, i) => <button key={i} onClick={() => addDecor(d, 'Decor')} className="text-4xl hover:scale-110 transition">{d}</button>)}
       </div>
 
-      {/* UPDATED: Larger Shelf Area for 5 rows */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 mt-16">
-        <div ref={constraintsRef} className={`relative w-full max-w-5xl h-[80vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
-          {/* UPDATED: Array [18, 36, 54, 72, 90] creates 5 shelf lines */}
+      {/* SHELF AREA */}
+      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 mt-20">
+        <div ref={constraintsRef} className={`relative w-full max-w-5xl h-[75vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
+          {/* 5 Physical Shelves */}
           {[18, 36, 54, 72, 90].map(top => (
             <div key={top} style={{ top: `${top}%` }} className={`absolute w-full h-4 border-b-4 ${isNight ? 'bg-slate-900 border-black' : 'bg-[#5d2d12] border-[#2d1608]'}`} />
           ))}
@@ -170,18 +185,18 @@ export default function CozyLibrary() {
           {items.map((item) => (
             <motion.div key={item.id} className="absolute p-1 z-20" style={{ left: item.x, top: item.y }} drag dragConstraints={constraintsRef} dragMomentum={false} onTap={() => setSelectedItem(item)}>
               {item.type === 'book' ? (
-                <div className={`w-[50px] h-32 rounded-sm shadow-xl flex items-center justify-center border-l-[4px] border-black/30 text-white transform -translate-y-[100%] mt-[-4px] cursor-pointer ${isNight ? 'brightness-90' : ''}`} style={{ backgroundColor: item.color }}>
-                  <span className="rotate-90 text-[10px] font-bold uppercase whitespace-nowrap tracking-widest handwritten leading-none">{item.label}</span>
+                <div className={`w-[45px] h-28 rounded-sm shadow-xl flex items-center justify-center border-l-[4px] border-black/30 text-white transform -translate-y-[100%] cursor-pointer ${isNight ? 'brightness-90' : ''}`} style={{ backgroundColor: item.color }}>
+                  <span className="rotate-90 text-[9px] font-bold uppercase whitespace-nowrap tracking-widest handwritten leading-none">{item.label}</span>
                 </div>
               ) : (
-                <span className={`text-6xl select-none drop-shadow-xl transform -translate-y-[100%] block cursor-grab active:cursor-grabbing mt-[-4px] ${isNight ? 'brightness-90' : ''}`}>{item.content}</span>
+                <span className={`text-6xl select-none drop-shadow-xl transform -translate-y-[100%] block cursor-grab active:cursor-grabbing ${isNight ? 'brightness-90' : ''}`}>{item.content}</span>
               )}
             </motion.div>
           ))}
         </div>
       </div>
 
-      {/* MODALS */}
+      {/* MODALS remain the same... */}
       <AnimatePresence>
         {isAddingBook && (
           <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-amber-950">
