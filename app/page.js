@@ -12,26 +12,24 @@ export default function CozyLibrary() {
   const [tempBook, setTempBook] = useState({ title: "", rating: 0, stage: 'title' });
   const constraintsRef = useRef(null);
 
-  // LOAD DATA ON STARTUP
   useEffect(() => {
     const savedItems = localStorage.getItem('cozy-library-items');
     const savedName = localStorage.getItem('cozy-library-name');
-    
     if (savedItems) setItems(JSON.parse(savedItems));
     if (savedName) setLibraryName(savedName);
 
-    // Also check for shared URL data
     const params = new URLSearchParams(window.location.search);
     const sharedData = params.get('data');
     if (sharedData) {
       try {
         const decoded = JSON.parse(atob(sharedData));
-        setItems(decoded || []);
+        // Expecting { name, items }
+        if (decoded.items) setItems(decoded.items);
+        if (decoded.name) setLibraryName(decoded.name);
       } catch (e) { console.error("Load failed"); }
     }
   }, []);
 
-  // SAVE DATA WHENEVER ITEMS OR NAME CHANGE
   useEffect(() => {
     localStorage.setItem('cozy-library-items', JSON.stringify(items));
     localStorage.setItem('cozy-library-name', libraryName);
@@ -39,15 +37,11 @@ export default function CozyLibrary() {
 
   const getNextAvailableSlot = () => {
     const MAX_PER_SHELF = 10;
-    const TOTAL_SHELVES = 3;
     const occupiedSlots = new Set(items.map(item => item.gridSlot));
-
-    for (let s = 0; s < TOTAL_SHELVES; s++) {
+    for (let s = 0; s < 3; s++) {
       for (let p = 0; p < MAX_PER_SHELF; p++) {
         const slotId = `${s}-${p}`;
-        if (!occupiedSlots.has(slotId)) {
-          return { slotId, x: 40 + (p * 80), y: (s * 30) + 30 + "%" };
-        }
+        if (!occupiedSlots.has(slotId)) return { slotId, x: 40 + (p * 80), y: (s * 30) + 30 + "%" };
       }
     }
     return null;
@@ -71,6 +65,13 @@ export default function CozyLibrary() {
     setTempBook({ title: "", rating: 0, stage: 'title' });
   };
 
+  const updateRating = (newRating) => {
+    setItems(prev => prev.map(item => 
+      item.id === selectedItem.id ? { ...item, rating: newRating } : item
+    ));
+    setSelectedItem(prev => ({ ...prev, rating: newRating }));
+  };
+
   const addDecor = (icon, label) => {
     const pos = getNextAvailableSlot();
     if (!pos) return alert("Shelves are full!");
@@ -85,15 +86,11 @@ export default function CozyLibrary() {
     setItems(prev => [...prev, newItem]);
   };
 
-  const deleteItem = (id) => {
-    setItems(items.filter(item => item.id !== id));
-    setSelectedItem(null);
-  };
-
   const generateShareLink = () => {
-    const data = btoa(JSON.stringify(items));
+    const exportData = { name: libraryName, items: items };
+    const data = btoa(JSON.stringify(exportData));
     const url = `${window.location.origin}${window.location.pathname}?data=${data}`;
-    navigator.clipboard.writeText(url).then(() => alert("Link Copied!"));
+    navigator.clipboard.writeText(url).then(() => alert("Share link copied with your library name!"));
   };
 
   return (
@@ -121,8 +118,6 @@ export default function CozyLibrary() {
 
       {/* SHELF AREA */}
       <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-12">
-        
-        {/* EDITABLE LIBRARY NAME */}
         <div className="mb-8 text-center">
           {isEditingName ? (
             <input 
@@ -134,14 +129,8 @@ export default function CozyLibrary() {
               onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)}
             />
           ) : (
-            <h1 
-              onClick={() => setIsEditingName(true)}
-              className={`text-6xl font-bold cursor-pointer hover:opacity-70 transition handwritten ${isNight ? 'text-amber-400' : 'text-amber-900'}`}
-            >
-              {libraryName}
-            </h1>
+            <h1 onClick={() => setIsEditingName(true)} className={`text-6xl font-bold cursor-pointer hover:opacity-70 transition handwritten ${isNight ? 'text-amber-400' : 'text-amber-900'}`}>{libraryName}</h1>
           )}
-          <p className={`text-xs uppercase tracking-[0.2em] mt-2 opacity-50 ${isNight ? 'text-white' : 'text-black'}`}>Click name to edit</p>
         </div>
 
         <div ref={constraintsRef} className={`relative w-full max-w-4xl h-[60vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
@@ -163,20 +152,20 @@ export default function CozyLibrary() {
         </div>
       </div>
 
-      {/* MODALS (Simplified for clarity) */}
+      {/* MODALS */}
       <AnimatePresence>
         {isAddingBook && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-amber-950">
             <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs text-center border-2 border-amber-100">
               {tempBook.stage === 'title' ? (
                 <>
-                  <h2 className="text-2xl font-black mb-4 text-amber-950 handwritten">Book Title</h2>
+                  <h2 className="text-2xl font-black mb-4 handwritten">Book Title</h2>
                   <input autoFocus className="w-full p-3 bg-amber-50 rounded-xl mb-6 border-2 border-amber-200 outline-none text-black font-bold handwritten text-xl" placeholder="The Great Gatsby..." onChange={(e) => setTempBook({...tempBook, title: e.target.value})} />
                   <button onClick={() => setTempBook({...tempBook, stage: 'rating'})} className="w-full bg-amber-900 text-white py-3 rounded-xl font-bold">Next</button>
                 </>
               ) : (
                 <>
-                  <h2 className="text-3xl font-black mb-1 text-amber-950 handwritten uppercase">{tempBook.title}</h2>
+                  <h2 className="text-3xl font-black mb-1 handwritten uppercase">{tempBook.title}</h2>
                   <div className="flex justify-center gap-1 text-4xl mb-8">
                     {[1, 2, 3, 4, 5].map(star => <button key={star} onClick={() => setTempBook({...tempBook, rating: star})} className={star <= tempBook.rating ? "text-yellow-500" : "text-gray-200"}>★</button>)}
                   </div>
@@ -189,17 +178,22 @@ export default function CozyLibrary() {
         )}
 
         {selectedItem && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-amber-950">
             <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs flex flex-col items-center border-2 border-amber-100">
-              <h2 className="text-3xl font-black mb-1 text-amber-950 handwritten uppercase text-center">{selectedItem.label}</h2>
+              <h2 className="text-3xl font-black mb-1 handwritten uppercase text-center">{selectedItem.label}</h2>
               {selectedItem.type === 'book' && (
-                <div className="flex gap-1 text-3xl mb-6">
-                  {[1, 2, 3, 4, 5].map(star => <span key={star} className={star <= selectedItem.rating ? "text-yellow-500" : "text-gray-200"}>★</span>)}
-                </div>
+                <>
+                  <p className="text-xs uppercase font-bold text-amber-800 mb-2">Edit Rating</p>
+                  <div className="flex gap-1 text-4xl mb-8">
+                    {[1, 2, 3, 4, 5].map(star => (
+                      <button key={star} onClick={() => updateRating(star)} className={star <= selectedItem.rating ? "text-yellow-500" : "text-gray-200"}>★</button>
+                    ))}
+                  </div>
+                </>
               )}
               <div className="flex gap-2 w-full">
                 <button onClick={() => setSelectedItem(null)} className="flex-1 bg-gray-100 text-gray-800 py-3 rounded-xl font-black">Close</button>
-                <button onClick={() => deleteItem(selectedItem.id)} className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl font-black">Delete</button>
+                <button onClick={() => { setItems(items.filter(i => i.id !== selectedItem.id)); setSelectedItem(null); }} className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl font-black">Delete</button>
               </div>
             </div>
           </div>
