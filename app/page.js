@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export default function CozyLibrary() {
+export default function AestheticUniverse() {
+  const [activeApp, setActiveApp] = useState('home');
   const [items, setItems] = useState([]);
   const [libraryName, setLibraryName] = useState("My Cozy Library");
   const [isEditingName, setIsEditingName] = useState(false);
@@ -12,59 +13,27 @@ export default function CozyLibrary() {
   const [tempBook, setTempBook] = useState({ title: "", rating: 0, stage: 'title' });
   const constraintsRef = useRef(null);
 
-  // 1. Load Data with smarter naming logic
+  // --- LIBRARY LOGIC ---
   useEffect(() => {
-    const savedItems = localStorage.getItem('cozy-library-items');
-    const savedName = localStorage.getItem('cozy-library-name');
-    
+    const savedItems = localStorage.getItem('cozy-universe-items');
+    const savedName = localStorage.getItem('cozy-universe-name');
     if (savedItems) setItems(JSON.parse(savedItems));
-    // Use saved name if it exists, otherwise stay with default
     if (savedName) setLibraryName(savedName);
-
-    const params = new URLSearchParams(window.location.search);
-    const v2Data = params.get('v2');
-    if (v2Data) {
-      try {
-        const decoded = JSON.parse(decodeURIComponent(atob(v2Data)));
-        const expandedItems = decoded.s.map(item => ({
-          id: "item-" + Math.random().toString(36).substr(2, 9),
-          type: item.t === 1 ? 'book' : 'decor',
-          label: item.l,
-          rating: item.r,
-          gridSlot: item.g,
-          color: item.c,
-          x: item.x,
-          y: item.y,
-          content: item.i
-        }));
-        setItems(expandedItems);
-        if (decoded.n) setLibraryName(decoded.n);
-      } catch (e) { console.error("Load failed"); }
-    }
   }, []);
 
   useEffect(() => {
-    localStorage.setItem('cozy-library-items', JSON.stringify(items));
-    localStorage.setItem('cozy-library-name', libraryName);
+    localStorage.setItem('cozy-universe-items', JSON.stringify(items));
+    localStorage.setItem('cozy-universe-name', libraryName);
   }, [items, libraryName]);
 
-  // FIXED: Vertical alignment math for 5 shelves
   const getNextAvailableSlot = () => {
     const MAX_PER_SHELF = 10;
     const occupiedSlots = new Set(items.map(item => item.gridSlot));
-    // Shelves are at 18%, 36%, 54%, 72%, 90%
     const shelfPositions = [18, 36, 54, 72, 90]; 
-    
     for (let s = 0; s < 5; s++) {
       for (let p = 0; p < MAX_PER_SHELF; p++) {
         const slotId = `${s}-${p}`;
-        if (!occupiedSlots.has(slotId)) {
-          return { 
-            slotId, 
-            x: 40 + (p * 80), 
-            y: shelfPositions[s] + "%" // Pins them exactly to the shelf line
-          };
-        }
+        if (!occupiedSlots.has(slotId)) return { slotId, x: 40 + (p * 80), y: shelfPositions[s] + "%" };
       }
     }
     return null;
@@ -88,157 +57,137 @@ export default function CozyLibrary() {
     setTempBook({ title: "", rating: 0, stage: 'title' });
   };
 
-  const updateRating = (newRating) => {
-    setItems(prev => prev.map(item => item.id === selectedItem.id ? { ...item, rating: newRating } : item));
-    setSelectedItem(prev => ({ ...prev, rating: newRating }));
-  };
-
   const addDecor = (icon, label) => {
     const pos = getNextAvailableSlot();
     if (!pos) return alert("Shelves are full!");
-    const newItem = {
+    setItems(prev => [...prev, {
       id: "decor-" + Date.now(),
       type: 'decor',
       label: label,
       content: icon,
       gridSlot: pos.slotId,
       x: pos.x, y: pos.y
-    };
-    setItems(prev => [...prev, newItem]);
+    }]);
   };
 
-  const generateShareLink = async () => {
-    try {
-      const slimItems = items.map(item => ({
-        t: item.type === 'book' ? 1 : 2,
-        l: item.label, r: item.rating || 0, g: item.gridSlot,
-        c: item.color || '', x: item.x, y: item.y, i: item.content || ''
-      }));
-      const exportData = { n: libraryName, s: slimItems };
-      const data = btoa(encodeURIComponent(JSON.stringify(exportData)));
-      const longUrl = `${window.location.origin}${window.location.pathname}?v2=${data}`;
-      const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
-      const finalUrl = response.ok ? await response.text() : longUrl;
-      
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(finalUrl);
-        alert("📋 Link copied!");
-      } else {
-        prompt("Copy link:", finalUrl);
-      }
-    } catch (err) { alert("Link generation failed!"); }
-  };
+  const apps = [
+    { id: 'photobooth', name: 'Photobooth', icon: '📸', color: 'bg-pink-100' },
+    { id: 'library', name: 'Virtual Library', icon: '📚', color: 'bg-amber-100' },
+    { id: 'moodboard', name: 'Mood Board', icon: '🎨', color: 'bg-purple-100' },
+    { id: 'capsule', name: 'Time Capsule', icon: '✉️', color: 'bg-blue-100' },
+    { id: 'habits', name: 'Plant Tracker', icon: '🌱', color: 'bg-green-100' },
+  ];
 
   return (
-    <main className={`min-h-screen flex font-serif overflow-hidden relative transition-colors duration-700 ${isNight ? 'bg-[#0f172a]' : 'bg-[#fefce8]'}`}>
+    <main className={`min-h-screen font-serif overflow-hidden relative transition-colors duration-700 ${isNight ? 'bg-[#0f172a]' : 'bg-[#fdf6e3]'}`}>
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap');
         .handwritten { font-family: 'Caveat', cursive; }
       `}</style>
 
-      {/* HEADER: Centered Title + Right-aligned Buttons */}
-      <div className="absolute top-6 left-0 right-0 z-50 flex items-center px-8">
-        {/* Spacer to keep name centered while sidebar is on the left */}
-        <div className="w-24"></div> 
-        
-        <div className="flex-1 text-center">
-          {isEditingName ? (
-            <input 
-              autoFocus 
-              className={`text-4xl font-bold bg-transparent border-b-2 border-amber-500 outline-none handwritten text-center ${isNight ? 'text-amber-400' : 'text-amber-900'}`} 
-              value={libraryName} 
-              onChange={(e) => setLibraryName(e.target.value)} 
-              onBlur={() => setIsEditingName(false)} 
-              onKeyDown={(e) => e.key === 'Enter' && setIsEditingName(false)} 
-            />
-          ) : (
-            <h1 onClick={() => setIsEditingName(true)} className={`text-5xl font-bold cursor-pointer hover:opacity-70 transition handwritten inline-block ${isNight ? 'text-amber-400' : 'text-amber-900'}`}>
-              {libraryName}
-            </h1>
-          )}
+      {/* GLOBAL HEADER */}
+      <nav className="p-6 flex justify-between items-center bg-white/30 backdrop-blur-md border-b border-amber-100/20 sticky top-0 z-50">
+        <h1 className="text-2xl font-bold handwritten cursor-pointer" onClick={() => setActiveApp('home')}>
+          My Cozy Universe
+        </h1>
+        <div className="flex items-center gap-4">
+          <button onClick={() => setIsNight(!isNight)} className="text-xl p-2 rounded-full bg-white/50">{isNight ? '☀️' : '🌙'}</button>
         </div>
+      </nav>
 
-        <div className="flex items-center gap-3">
-          <button onClick={() => setIsNight(!isNight)} className={`flex items-center gap-2 px-4 py-2 rounded-full font-bold shadow-lg border-2 transition-all ${isNight ? 'bg-slate-800 text-amber-400 border-amber-400/30' : 'bg-white text-indigo-900 border-indigo-100'}`}>
-            {isNight ? '☀️' : '🌙'}
-          </button>
-          <button onClick={generateShareLink} className="bg-green-600 text-white px-6 py-2 rounded-full font-bold shadow-lg hover:bg-green-700 transition-colors">SHARE</button>
-        </div>
-      </div>
-
-      {/* SIDEBAR */}
-      <div className={`relative z-10 w-24 flex flex-col items-center gap-4 border-r-2 p-4 h-screen shadow-xl transition-colors duration-700 ${isNight ? 'bg-slate-900/90 border-slate-700' : 'bg-white/90 border-amber-100'}`}>
-        <button onClick={() => setIsAddingBook(true)} className="w-14 h-14 bg-amber-700 text-white rounded-2xl text-xl shadow-lg mb-2 active:scale-95 transition-transform mt-20">📖+</button>
-        {['🪴', '🌵', '🎍'].map((p, i) => <button key={i} onClick={() => addDecor(p, 'Plant')} className="text-4xl hover:scale-110 transition">{p}</button>)}
-        <div className={`w-10 h-[2px] my-2 ${isNight ? 'bg-slate-700' : 'bg-amber-100'}`} />
-        {['🏺', '🍵'].map((d, i) => <button key={i} onClick={() => addDecor(d, 'Decor')} className="text-4xl hover:scale-110 transition">{d}</button>)}
-      </div>
-
-      {/* SHELF AREA */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center p-8 mt-20">
-        <div ref={constraintsRef} className={`relative w-full max-w-5xl h-[75vh] border-x-[12px] shadow-2xl rounded-sm transition-colors duration-700 ${isNight ? 'bg-slate-800/40 border-slate-900' : 'bg-[#fffcf0] border-[#3e1d0b]'}`}>
-          {/* 5 Physical Shelves */}
-          {[18, 36, 54, 72, 90].map(top => (
-            <div key={top} style={{ top: `${top}%` }} className={`absolute w-full h-4 border-b-4 ${isNight ? 'bg-slate-900 border-black' : 'bg-[#5d2d12] border-[#2d1608]'}`} />
-          ))}
-
-          {items.map((item) => (
-            <motion.div key={item.id} className="absolute p-1 z-20" style={{ left: item.x, top: item.y }} drag dragConstraints={constraintsRef} dragMomentum={false} onTap={() => setSelectedItem(item)}>
-              {item.type === 'book' ? (
-                <div className={`w-[45px] h-28 rounded-sm shadow-xl flex items-center justify-center border-l-[4px] border-black/30 text-white transform -translate-y-[100%] cursor-pointer ${isNight ? 'brightness-90' : ''}`} style={{ backgroundColor: item.color }}>
-                  <span className="rotate-90 text-[9px] font-bold uppercase whitespace-nowrap tracking-widest handwritten leading-none">{item.label}</span>
-                </div>
-              ) : (
-                <span className={`text-6xl select-none drop-shadow-xl transform -translate-y-[100%] block cursor-grab active:cursor-grabbing ${isNight ? 'brightness-90' : ''}`}>{item.content}</span>
-              )}
+      <div className="p-4 h-[calc(100vh-88px)] flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          
+          {/* DASHBOARD */}
+          {activeApp === 'home' && (
+            <motion.div key="home" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="grid grid-cols-2 md:grid-cols-3 gap-8 max-w-4xl">
+              {apps.map((app) => (
+                <button key={app.id} onClick={() => setActiveApp(app.id)} className={`${app.color} p-10 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-2 transition-all flex flex-col items-center gap-4 group border-2 border-transparent hover:border-white`}>
+                  <span className="text-6xl group-hover:scale-110 transition-transform">{app.icon}</span>
+                  <span className="font-bold uppercase tracking-wider text-xs">{app.name}</span>
+                </button>
+              ))}
             </motion.div>
-          ))}
-        </div>
+          )}
+
+          {/* VIRTUAL LIBRARY APP */}
+          {activeApp === 'library' && (
+            <motion.div key="library" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="w-full h-full bg-white/80 rounded-[3rem] shadow-2xl p-4 relative overflow-hidden flex">
+              
+              {/* BACK BUTTON */}
+              <button onClick={() => setActiveApp('home')} className="absolute top-4 left-4 z-50 bg-amber-900 text-white px-4 py-2 rounded-full font-bold text-xs">← HOME</button>
+
+              {/* LIBRARY SIDEBAR */}
+              <div className="w-20 flex flex-col items-center gap-4 border-r p-2 mt-12">
+                <button onClick={() => setIsAddingBook(true)} className="w-12 h-12 bg-amber-700 text-white rounded-xl text-lg shadow-lg">📖+</button>
+                {['🪴', '🌵', '🎍', '🏺', '🍵'].map((d, i) => (
+                   <button key={i} onClick={() => addDecor(d, 'Decor')} className="text-3xl hover:scale-110">{d}</button>
+                ))}
+              </div>
+
+              {/* LIBRARY MAIN */}
+              <div className="flex-1 flex flex-col items-center p-4">
+                <div className="mb-4">
+                   {isEditingName ? (
+                     <input autoFocus className="text-4xl font-bold bg-transparent border-b-2 border-amber-500 outline-none handwritten text-center" value={libraryName} onChange={(e) => setLibraryName(e.target.value)} onBlur={() => setIsEditingName(false)} />
+                   ) : (
+                     <h2 onClick={() => setIsEditingName(true)} className="text-4xl font-bold handwritten cursor-pointer text-amber-900">{libraryName}</h2>
+                   )}
+                </div>
+
+                <div ref={constraintsRef} className="relative w-full max-w-4xl h-[70vh] border-x-[10px] border-amber-900/10 bg-[#fffcf0] shadow-inner rounded-sm">
+                  {[18, 36, 54, 72, 90].map(top => (
+                    <div key={top} style={{ top: `${top}%` }} className="absolute w-full h-3 border-b-4 bg-[#5d2d12] border-[#2d1608]" />
+                  ))}
+
+                  {items.map((item) => (
+                    <motion.div key={item.id} className="absolute z-20" style={{ left: item.x, top: item.y }} drag dragConstraints={constraintsRef} dragMomentum={false} onTap={() => setSelectedItem(item)}>
+                      {item.type === 'book' ? (
+                        <div className="w-[40px] h-24 rounded-sm shadow-md flex items-center justify-center border-l-[3px] border-black/20 text-white transform -translate-y-[100%] cursor-pointer" style={{ backgroundColor: item.color }}>
+                          <span className="rotate-90 text-[8px] font-bold uppercase tracking-widest handwritten whitespace-nowrap">{item.label}</span>
+                        </div>
+                      ) : (
+                        <span className="text-5xl select-none drop-shadow-md transform -translate-y-[100%] block cursor-grab active:cursor-grabbing">{item.content}</span>
+                      )}
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* OTHER APPS PLACEHOLDER */}
+          {activeApp !== 'home' && activeApp !== 'library' && (
+             <motion.div key="other" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center">
+                <button onClick={() => setActiveApp('home')} className="mb-8 bg-slate-200 px-6 py-2 rounded-full font-bold uppercase text-xs tracking-widest">Back to Desk</button>
+                <h2 className="text-6xl">🚧</h2>
+                <p className="handwritten text-3xl mt-4 italic">The {activeApp} is being built...</p>
+             </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* MODALS remain the same... */}
+      {/* MODALS */}
       <AnimatePresence>
         {isAddingBook && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-amber-950">
-            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs text-center border-2 border-amber-100">
+          <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[200]">
+            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs text-center border-2 border-amber-500/10">
               {tempBook.stage === 'title' ? (
                 <>
-                  <h2 className="text-2xl font-black mb-4 handwritten">Book Title</h2>
-                  <input autoFocus className="w-full p-3 bg-amber-50 rounded-xl mb-6 border-2 border-amber-200 outline-none text-black font-bold handwritten text-xl" placeholder="Book name..." onChange={(e) => setTempBook({...tempBook, title: e.target.value})} />
-                  <button onClick={() => setTempBook({...tempBook, stage: 'rating'})} className="w-full bg-amber-900 text-white py-3 rounded-xl font-bold">Next</button>
+                  <h2 className="text-2xl font-bold mb-4 handwritten">New Book Title</h2>
+                  <input autoFocus className="w-full p-2 bg-amber-50 rounded-lg mb-4 text-center font-bold" onChange={(e) => setTempBook({...tempBook, title: e.target.value})} />
+                  <button onClick={() => setTempBook({...tempBook, stage: 'rating'})} className="w-full bg-amber-900 text-white py-2 rounded-lg font-bold">Next</button>
                 </>
               ) : (
                 <>
-                  <h2 className="text-3xl font-black mb-1 handwritten uppercase">{tempBook.title}</h2>
-                  <div className="flex justify-center gap-1 text-4xl mb-8">
-                    {[1, 2, 3, 4, 5].map(star => <button key={star} onClick={() => setTempBook({...tempBook, rating: star})} className={star <= tempBook.rating ? "text-yellow-500" : "text-gray-200"}>★</button>)}
+                  <h2 className="text-2xl font-bold mb-1 handwritten">{tempBook.title}</h2>
+                  <div className="flex justify-center gap-1 text-3xl mb-6">
+                    {[1,2,3,4,5].map(s => <button key={s} onClick={() => setTempBook({...tempBook, rating: s})} className={s <= tempBook.rating ? "text-yellow-500" : "text-gray-200"}>★</button>)}
                   </div>
-                  <button onClick={finalizeBook} className="w-full bg-green-700 text-white py-3 rounded-xl font-bold">Finish</button>
+                  <button onClick={finalizeBook} className="w-full bg-green-700 text-white py-2 rounded-lg font-bold">Add to Shelf</button>
                 </>
               )}
-              <button onClick={() => setIsAddingBook(false)} className="mt-4 text-gray-500 font-bold text-sm">Cancel</button>
-            </motion.div>
-          </div>
-        )}
-
-        {selectedItem && (
-          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4 text-amber-950">
-            <div className="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-xs flex flex-col items-center border-2 border-amber-100">
-              <h2 className="text-3xl font-black mb-1 handwritten uppercase text-center">{selectedItem.label}</h2>
-              {selectedItem.type === 'book' && (
-                <>
-                  <p className="text-xs uppercase font-bold text-amber-800 mb-2">Edit Rating</p>
-                  <div className="flex gap-1 text-4xl mb-8">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button key={star} onClick={() => updateRating(star)} className={star <= selectedItem.rating ? "text-yellow-500" : "text-gray-200"}>★</button>
-                    ))}
-                  </div>
-                </>
-              )}
-              <div className="flex gap-2 w-full">
-                <button onClick={() => setSelectedItem(null)} className="flex-1 bg-gray-100 text-gray-800 py-3 rounded-xl font-black">Close</button>
-                <button onClick={() => { setItems(items.filter(i => i.id !== selectedItem.id)); setSelectedItem(null); }} className="flex-1 bg-red-50 text-red-600 py-3 rounded-xl font-black">Delete</button>
-              </div>
+              <button onClick={() => setIsAddingBook(false)} className="mt-4 text-xs text-gray-400">Cancel</button>
             </div>
           </div>
         )}
